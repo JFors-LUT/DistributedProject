@@ -1,5 +1,6 @@
 ##Jarno Forsblom Distributed systems final project
 import Fetcher
+import DataManager
 import socket
 import threading
 
@@ -33,8 +34,8 @@ def handleClient(conn, addr):
             if returnBody == 0:
                 conn.send("Connection error. Incorrect URL or requested website is down.".encode())
             else: 
-                #TODO Data manager
-                conn.send(returnBody.encode())
+                processBody = DataManager.processData(message, returnBody)
+                conn.send(processBody.encode())
         print("Received message from {}: {}".format(addr, message))
     conn.close()
         

@@ -48,7 +48,7 @@ def sendURL(s):
                 return 0
             elif message.strip() != "":
                 s.send("{}".format(message).encode())
-                response = s.recv(1024).decode()
+                response = s.recv(8192).decode('utf-8')
                 print(response)
         except ConnectionResetError:
             return 0
