@@ -1,39 +1,36 @@
+import pika
+import json
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
-import pika
+
+class Crawler:
+    def __init__(self):
+
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+        self.channel = self.connection.channel()
+
+        self.channel.queue_declare(queue='crawler_queue')
+        self.channel.basic_consume(queue='crawler_queue', on_message_callback=self.on_request)
 
 
-connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
-channel = connection.channel()
-
-def runCrawler():
-    channel.queue_declare(queue='fetcher_queue')
-    channel.exchange_declare(exchange='fetcher_exchange', exchange_type='direct')
-    channel.queue_bind(queue='fetcher_queue', exchange='fetcher_exchange', routing_key='fetcher_key')
-    channel.basic_consume(queue='fetcher_queue', on_message_callback=callback, auto_ack=True)
-    print("Crawler is waiting for messages...")
-    while True:
-        try:
-            channel.start_consuming()
-        except KeyboardInterrupt:
-            print('Interrupted')
-        break
-
-    # close connection
-    connection.close()
-
-def callback(ch, method, properties, body):
-    print(" [x] Received %r" % body)
-    response = getContent(body.decode())
-    soup = BeautifulSoup(response.text, 'html.parser')
-    page_title = soup.title.string
-    print(f" [x] Page title: {page_title}")
-    channel.queue_declare(queue='result_queue')
-    channel.basic_publish(exchange='', routing_key='result_queue', body=page_title.encode())
 
 
+    def on_request(self, ch, method, props, body):
+        message = json.loads(body.decode())
+        url = message['url']
+        corr_id = message['corr_id']
+        response = getContent(url)
+
+        if response != 0:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            response = str(soup)
+            #title = soup.title.string
+        response_message = json.dumps({'content': response, 'corr_id': corr_id})
+
+        ch.basic_publish(exchange='', routing_key=props.reply_to, properties=pika.BasicProperties(correlation_id=corr_id), body=response_message)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
 def getContent(message):
     try:
@@ -44,19 +41,19 @@ def getContent(message):
         session.mount('https://', adapter)
         if message[:4] == "http":
             response = requests.get(message)
-            #soup = BeautifulSoup(response.content, 'html.parser')
             return response
-
         else:
             message = 'https://'+message
             response = session.get(message)
-            #soup = BeautifulSoup(response.content, 'html.parser')
-            #body_text = soup.find('body')
+
             return response
-            #return response
+
     except (requests.exceptions.MissingSchema, requests.exceptions.ConnectionError):
-        print("failed")
-        return 0
+        return 0        
 
 if __name__ == '__main__':
-    runCrawler()
+    crawler = Crawler()
+
+    print('Crawler is running...')
+    crawler.channel.start_consuming()
+    print('Crawler might be down...')

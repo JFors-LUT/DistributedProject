@@ -10,7 +10,6 @@ class DataManager:
         self.channel = self.connection.channel()
 
         self.channel.queue_declare(queue='data_queue')
-        self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue='data_queue', on_message_callback=self.on_request)
 
     def on_request(self, ch, method, props, body):
@@ -18,8 +17,6 @@ class DataManager:
         url = message['url']
         website = message['content']
         corr_id = message['corr_id']
-
-        print(website, url, corr_id)
 
         #response = requests.get(url)
         response = processData(url, website)
@@ -45,11 +42,8 @@ def processData(URL, returnSite):
     
 def caseIltalehti(soup):
     text = "" 
-    textList = []
-    #titleClass = 
 
     for element in soup.find_all('div', class_='front-title a-title-font'):
-        print(element.text.strip())
         text += element.text.strip()+'\n'
     return text
 
@@ -58,3 +52,4 @@ if __name__ == '__main__':
 
     print('Data Manager is running...')
     manager.channel.start_consuming()
+    print('Data manager might not be running... ')
