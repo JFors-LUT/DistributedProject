@@ -8,19 +8,24 @@ from bs4 import BeautifulSoup
 class Crawler:
     def __init__(self):
 
+         #create connection with pika 
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
         self.channel = self.connection.channel()
 
+        #declares queue and consume. on receiving data on_request is called
         self.channel.queue_declare(queue='crawler_queue')
         self.channel.basic_consume(queue='crawler_queue', on_message_callback=self.on_request)
 
 
     def on_request(self, ch, method, props, body):
+        #json for api
         message = json.loads(body.decode())
         url = message['url']
         corr_id = message['corr_id']
+        #fetch website 
         response = getContent(url)
 
+        #proces response with BeautifulSoup object and turn to string for JSON return
         if response != 0:
             soup = BeautifulSoup(response.content, 'html.parser')
             response = str(soup)

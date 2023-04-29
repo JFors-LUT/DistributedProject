@@ -14,14 +14,13 @@ class HealthMonitoring:
         #health_monitor_queue bound to health_check with routing key health_monitor
         self.channel.exchange_declare(exchange='health_check', exchange_type='direct')
         self.channel.queue_declare(queue='health_monitor_queue')
-        #self.channel.queue_bind(queue='health_monitor_queue', exchange='health_check', routing_key='health_monitor')
+        self.channel.queue_bind(queue='health_monitor_queue', exchange='health_check', routing_key='health_monitor')
 
         self.channel.basic_consume(queue='health_monitor_queue', on_message_callback=self.on_health_check)
 
 
 
     def on_health_check(self, ch, method, props, body):
-        
         message = json.loads(body.decode())
         url = message['url']
 
@@ -31,16 +30,21 @@ class HealthMonitoring:
         current_time = now.strftime("%H:%M:%S")
         
         #failed service returns 0, notify on console
-        if url == 0:
-             print(('[{}]: Crawl from user {} failed.'.format(current_time, user)))
-        #else log succesful service
-        else:
+        if url != 0:
             self.crawlcount += 1
             healthCheck(current_time, user, url)
             response_message = json.dumps({'content': user, 'url': url})
-            print('[{}]: {} crawl(s) succesfully executed.'.format(current_time, self.crawlcount))    
+            print('[{}]: {} crawl(s) succesfully executed.'.format(current_time, self.crawlcount))  
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return  
+            
+        #else log succesful service
+        else:
+            print(('[{}]: Crawl from user {} failed.'.format(current_time, user)))
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return
         #acknowledge to purge the message 
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        
 
 #log user and crawls to file 
 def healthCheck(current_time, user, url, ):

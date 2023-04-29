@@ -11,8 +11,8 @@ PORT = 8000
 
 class MicroManager:
     def __init__(self):
-        #variable to manage wait time on response
-        self.retry_connection = 3
+        #variable to manage wait time on response and inform client
+        self.retry_connection = 10
         #create pika connection as localhost
         
         self.connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
@@ -35,6 +35,7 @@ class MicroManager:
         self.response = None
         self.corr_id = str(uuid.uuid4())
 
+        #Use json for API
         message = json.dumps({'url': url, 'corr_id': self.corr_id})
 
         #publish message to crawler_queue with variables for return message
@@ -50,7 +51,7 @@ class MicroManager:
         while self.response is None:
             retries -= 1
             self.connection.process_data_events()
-            time.sleep(self.retry_connection)
+            time.sleep(1)
             if retries == 0:
                 return {'content': retries}
 
@@ -76,7 +77,7 @@ class MicroManager:
         while self.response is None:
             retries -= 1
             self.connection.process_data_events()
-            time.sleep(self.retry_connection)
+            time.sleep(1)
             if retries == 0:
                 return {'content': retries}
         return json.loads(self.response)
@@ -114,16 +115,15 @@ def handleClient(conn, addr):
             response = micro_manager.sendRequest(message)
             if response['content'] == 0:
                 conn.send("Connection error. Incorrect URL or requested service is down.".encode())
+                micro_manager.monitorHealth(addr, response['content'])
             else:
                 response = micro_manager.processData(response['content'], message)
                 if response['content'] == 0: 
                     conn.send("Connection error. Incorrect URL or requested service is down.".encode())
+                    micro_manager.monitorHealth(addr, response['content'])
                 else:
                     conn.send(response['content'].encode())
-                #healthMessage = 
-            if response['content'] == 0:
-                micro_manager.monitorHealth(addr, response['content'])
-            else:
+
                 micro_manager.monitorHealth(addr, message)
 
         print("Received message from {}: {}".format(addr, message))
