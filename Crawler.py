@@ -15,8 +15,6 @@ class Crawler:
         self.channel.basic_consume(queue='crawler_queue', on_message_callback=self.on_request)
 
 
-
-
     def on_request(self, ch, method, props, body):
         message = json.loads(body.decode())
         url = message['url']
@@ -56,4 +54,3 @@ if __name__ == '__main__':
 
     print('Crawler is running...')
     crawler.channel.start_consuming()
-    print('Crawler might be down...')

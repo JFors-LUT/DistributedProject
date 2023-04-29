@@ -1,12 +1,6 @@
 import socket
-import requests
-from bs4 import BeautifulSoup
 import sys
 
-def menu():
-    print("1) Connect to service\n0) Close connection\n")
-    options = input("Enter your choice: ")
-    return options
 
 #test variable for easy access to localhost
 def setServer(test):
@@ -25,6 +19,7 @@ def setPort(test):
     port = input("Set server port: ")
     return port
 
+#connects to micormanager servic
 def getWebsite(s):
 
     s.send("connect".encode())
@@ -35,7 +30,7 @@ def getWebsite(s):
     return 
 
 def sendURL(s):
- 
+    #while loop to send URLs for processing, exit to kill the connection
     while True:
         try:
             message = input("URL: ")
@@ -46,10 +41,10 @@ def sendURL(s):
                 return 0
             elif message.strip() != "":
                 s.send("{}".format(message).encode())
-                #set to replace invalid unicode characters
+                #set to replace invalid unicode characters that would halt the program
                 response = s.recv(4096).decode('utf-8', 'replace')
                 print(response, end='')
-
+                #if response larger than buffersize we fetch responses until buffer is empty
                 while sys.getsizeof((response)) > 4096:
                     response = s.recv(4096).decode('utf-8', 'replace')
                     print(response, end='')
@@ -79,35 +74,7 @@ def clientRun():
                 getWebsite(s)
                 s.shutdown(2)
                 break
-            
-''' 
-TEST FUNCTION TO PLAY AROUND WITH CRAWLING A WEBSITE
-def crawl():
-    #while True:
-        #url = input("URL: ")
-        url = 'https://www.google.com.com'
-        try:
-            response = requests.get(url)
-            soup = BeautifulSoup(response.content, 'html.parser')
-            links = soup.find_all('a')
-            for link in links:
-                print(link.get('href'))
-
-            
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            for p in soup.find_all('h1'):
-                print(p.text)
-        except (requests.exceptions.MissingSchema, requests.exceptions.ConnectionError):
-            print("We ran into a problem. Please check your URL is correct.")
-    
-        return links
-'''
-
-
 
 if __name__ == "__main__":
     clientRun() #rabbitmq-server start <--- command note to run rabbitMQ server
-    #print(crawl())
-    
                 
